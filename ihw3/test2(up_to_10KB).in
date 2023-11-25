@@ -1,0 +1,283 @@
+# Sample program that writes to a new file.
+.eqv	NAME_SIZE 256	# Размер буфера для имени файла
+
+        .data
+prompt:  .asciz "Input file path: "     # Путь до читаемого файла
+er_name_mes: .asciz "Incorrect file name\n"
+default_name: .asciz "testout.txt"      # Имя файла по умолчанию
+# Это выводимый текст
+buffer: .asciz "The quick brown fox jumps over the lazy dog."
+file_name: .space	NAME_SIZE		# Имя читаемого файла
+
+        .text
+    ###############################################################
+    # Ввод имени файла с консоли эмулятора
+    la		a0 file_name
+    li      a1 NAME_SIZE
+    li      a7 8
+    ecall
+    # Убрать перевод строки
+    li  t4 '\n'
+    la  t5  file_name
+    mv  t3 t5	# Сохранение начала буфера для проверки на пустую строку
+loop:
+    lb	t6  (t5)
+    beq t4	t6	replace
+    addi t5 t5 1
+    b   loop
+replace:
+    beq t3 t5 default	# Установка имени введенного файла
+    sb  zero (t5)
+    mv   a0, t3 	# Имя, введенное пользователем
+    b out
+default:
+    la   a0, default_name # Имя файла по умолчани
+    ###############################################################
+out:
+    # Open (for writing) a file that does not exist
+    li   a7, 1024     # system call for open file
+    li   a1, 1        # Open for writing (flags are 0: read, 1: write)
+    ecall             # open a file (file descriptor returned in a0)
+    mv   s6, a0       # save the file descriptor
+    ###############################################################
+    # Write to file just opened
+    li   a7, 64       # system call for write to file
+    mv   a0, s6       # file descriptor
+    la   a1, buffer   # address of buffer from which to write
+    li   a2, 44       # hardcoded buffer length
+    ecall             # write to file
+    ###############################################################
+    # Close the file
+    li   a7, 57       # system call for close file
+    mv   a0, s6       # file descriptor to close
+    ecall             # close file
+    ###############################################################
+
+# Чтение текста из файла, задаваемого в диалоге, в буфер фиксированного размера
+.include "macro-syscalls.m"
+.eqv    NAME_SIZE 256	# Размер буфера для имени файла
+.eqv    TEXT_SIZE 512	# Размер буфера для текста
+
+    .data
+er_name_mes:    .asciz "Incorrect file name\n"
+er_read_mes:    .asciz "Incorrect read operation\n"
+
+file_name:      .space	NAME_SIZE		# Имячитаемого файла
+strbuf:	.space TEXT_SIZE			# Буфер для читаемого текста
+        .text
+    ###############################################################
+    # Вывод подсказки
+    print_str ("Input file path: ")
+
+    # Ввод имени файла с консоли эмулятора
+    la		a0 file_name
+    li      a1 NAME_SIZE
+    li      a7 8
+    ecall
+    # Убрать перевод строки
+    li	t4 '\n'
+    la	t5	file_name
+loop:
+    lb	t6  (t5)
+    beq t4	t6	replace
+    addi t5 t5 1
+    b	loop
+replace:
+    sb	zero (t5)
+    ###############################################################
+    li   	a7 1024     	# Системный вызов открытия файла
+    la      a0 file_name    # Имя открываемого файла
+    li   	a1 0        	# Открыть для чтения (флаг = 0)
+    ecall             		# Дескриптор файла в a0 или -1)
+    li		s1 -1			# Проверка на корректное открытие
+    beq		a0 s1 er_name	# Ошибка открытия файла
+    mv   	s0 a0       	# Сохранение дескриптора файла
+    ###############################################################
+    # Чтение информации из открытого файла
+    li   a7, 63       # Системный вызов для чтения из файла
+    mv   a0, s0       # Дескриптор файл
+    la   a1, strbuf   # Адрес буфера для читаемого текста
+    li   a2, TEXT_SIZE # Размер читаемой порции
+    #li   a2, 10 # Размер читаемой порции
+    ecall             # Чтение
+    # Проверка на корректное чтение
+    beq		a0 s1 er_read	# Ошибка чтения
+    mv   	s2 a0       	# Сохранение длины текста
+    ###############################################################
+    # Закрытие файла
+    li   a7, 57       # Системный вызов закрытия файла
+    mv   a0, s0       # Дескриптор файла
+    ecall             # Закрытие файла
+    ###############################################################
+    # Установка нуля в конце прочитанной строки
+    la	t0 strbuf	 # Адрес начала буфера
+    add t0 t0 s2	 # Адрес последнего прочитанного символа
+    addi t0 t0 1	 # Место для нуля
+    sb	zero (t0)	 # Запись нуля в конец текста
+    ###############################################################
+    # Вывод текста на консоль
+    la 	a0 strbuf
+    li 	a7 4
+    ecall
+    # Завершение  программы
+    li a7 10
+    ecall
+er_name:
+    # Сообщение об ошибочном имени файла
+    la		a0 er_name_mes
+    li		a7 4
+    ecall
+    # И завершение программы
+    li		a7 10
+    ecall
+er_read:
+    # Сообщение об ошибочном чтении
+    la		a0 er_read_mes
+    li		a7 4
+    ecall
+    # И завершение программы
+    li		a7 10
+    ecall
+
+# Sample program that writes to a new file.
+.eqv	NAME_SIZE 256	# Размер буфера для имени файла
+
+        .data
+prompt:  .asciz "Input file path: "     # Путь до читаемого файла
+er_name_mes: .asciz "Incorrect file name\n"
+default_name: .asciz "testout.txt"      # Имя файла по умолчанию
+# Это выводимый текст
+buffer: .asciz "The quick brown fox jumps over the lazy dog."
+file_name: .space	NAME_SIZE		# Имя читаемого файла
+
+        .text
+    ###############################################################
+    # Ввод имени файла с консоли эмулятора
+    la		a0 file_name
+    li      a1 NAME_SIZE
+    li      a7 8
+    ecall
+    # Убрать перевод строки
+    li  t4 '\n'
+    la  t5  file_name
+    mv  t3 t5	# Сохранение начала буфера для проверки на пустую строку
+loop:
+    lb	t6  (t5)
+    beq t4	t6	replace
+    addi t5 t5 1
+    b   loop
+replace:
+    beq t3 t5 default	# Установка имени введенного файла
+    sb  zero (t5)
+    mv   a0, t3 	# Имя, введенное пользователем
+    b out
+default:
+    la   a0, default_name # Имя файла по умолчани
+    ###############################################################
+out:
+    # Open (for writing) a file that does not exist
+    li   a7, 1024     # system call for open file
+    li   a1, 1        # Open for writing (flags are 0: read, 1: write)
+    ecall             # open a file (file descriptor returned in a0)
+    mv   s6, a0       # save the file descriptor
+    ###############################################################
+    # Write to file just opened
+    li   a7, 64       # system call for write to file
+    mv   a0, s6       # file descriptor
+    la   a1, buffer   # address of buffer from which to write
+    li   a2, 44       # hardcoded buffer length
+    ecall             # write to file
+    ###############################################################
+    # Close the file
+    li   a7, 57       # system call for close file
+    mv   a0, s6       # file descriptor to close
+    ecall             # close file
+    ###############################################################
+
+# Чтение текста из файла, задаваемого в диалоге, в буфер фиксированного размера
+.include "macro-syscalls.m"
+.eqv    NAME_SIZE 256	# Размер буфера для имени файла
+.eqv    TEXT_SIZE 512	# Размер буфера для текста
+
+    .data
+er_name_mes:    .asciz "Incorrect file name\n"
+er_read_mes:    .asciz "Incorrect read operation\n"
+
+file_name:      .space	NAME_SIZE		# Имячитаемого файла
+strbuf:	.space TEXT_SIZE			# Буфер для читаемого текста
+        .text
+    ###############################################################
+    # Вывод подсказки
+    print_str ("Input file path: ")
+
+    # Ввод имени файла с консоли эмулятора
+    la		a0 file_name
+    li      a1 NAME_SIZE
+    li      a7 8
+    ecall
+    # Убрать перевод строки
+    li	t4 '\n'
+    la	t5	file_name
+loop:
+    lb	t6  (t5)
+    beq t4	t6	replace
+    addi t5 t5 1
+    b	loop
+replace:
+    sb	zero (t5)
+    ###############################################################
+    li   	a7 1024     	# Системный вызов открытия файла
+    la      a0 file_name    # Имя открываемого файла
+    li   	a1 0        	# Открыть для чтения (флаг = 0)
+    ecall             		# Дескриптор файла в a0 или -1)
+    li		s1 -1			# Проверка на корректное открытие
+    beq		a0 s1 er_name	# Ошибка открытия файла
+    mv   	s0 a0       	# Сохранение дескриптора файла
+    ###############################################################
+    # Чтение информации из открытого файла
+    li   a7, 63       # Системный вызов для чтения из файла
+    mv   a0, s0       # Дескриптор файл
+    la   a1, strbuf   # Адрес буфера для читаемого текста
+    li   a2, TEXT_SIZE # Размер читаемой порции
+    #li   a2, 10 # Размер читаемой порции
+    ecall             # Чтение
+    # Проверка на корректное чтение
+    beq		a0 s1 er_read	# Ошибка чтения
+    mv   	s2 a0       	# Сохранение длины текста
+    ###############################################################
+    # Закрытие файла
+    li   a7, 57       # Системный вызов закрытия файла
+    mv   a0, s0       # Дескриптор файла
+    ecall             # Закрытие файла
+    ###############################################################
+    # Установка нуля в конце прочитанной строки
+    la	t0 strbuf	 # Адрес начала буфера
+    add t0 t0 s2	 # Адрес последнего прочитанного символа
+    addi t0 t0 1	 # Место для нуля
+    sb	zero (t0)	 # Запись нуля в конец текста
+    ###############################################################
+    # Вывод текста на консоль
+    la 	a0 strbuf
+    li 	a7 4
+    ecall
+    # Завершение  программы
+    li a7 10
+    ecall
+er_name:
+    # Сообщение об ошибочном имени файла
+    la		a0 er_name_mes
+    li		a7 4
+    ecall
+    # И завершение программы
+    li		a7 10
+    ecall
+er_read:
+    # Сообщение об ошибочном чтении
+    la		a0 er_read_mes
+    li		a7 4
+    ecall
+    # И завершение программы
+    li		a7 10
+    ecall
+
+

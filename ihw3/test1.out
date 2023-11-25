@@ -1,0 +1,1 @@
+global check limits text check limits true false a0 addi sp sp sw ra sp addi a0 sp lw a1 a0 li a0 bool res true li a2 blt a1 a2 incorrect check size a1 incorrect check size li a2 bge a1 a2 incorrect check size a1 incorrect check size j end check inc
